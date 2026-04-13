@@ -11,18 +11,55 @@ from homeassistant.helpers import selector
 from .const import (
     DOMAIN,
     CONF_NORDPOOL_SENSOR,
-    CONF_CHEAP_SLOTS,
-    CONF_EVENING_RANGE_START,
-    CONF_EVENING_RANGE_END,
-    CONF_MORNING_RANGE_START,
-    CONF_MORNING_RANGE_END,
+    CONF_CHEAP_DURATION,
+    CONF_CONTINUOUS_CHEAP_HOURS,
+    CONF_WINDOW_START,
+    CONF_WINDOW_END,
     DEFAULT_NAME,
-    DEFAULT_CHEAP_SLOTS,
-    DEFAULT_EVENING_RANGE_START,
-    DEFAULT_EVENING_RANGE_END,
-    DEFAULT_MORNING_RANGE_START,
-    DEFAULT_MORNING_RANGE_END,
+    DEFAULT_CHEAP_DURATION,
+    DEFAULT_CONTINUOUS_CHEAP_HOURS,
+    DEFAULT_WINDOW_START,
+    DEFAULT_WINDOW_END,
 )
+
+def _quarter_hour_times() -> list[str]:
+    """Return all 96 quarter-hour time strings (HH:MM) for 00:00..23:45."""
+    return [
+        f"{h:02d}:{m:02d}"
+        for h in range(24)
+        for m in (0, 15, 30, 45)
+    ]
+
+
+def _duration_options() -> list[str]:
+    """Return quarter-hour duration strings from 00:15 to 12:00."""
+    options = []
+    for h in range(13):
+        for m in (0, 15, 30, 45):
+            if h == 0 and m == 0:
+                continue
+            if h == 12 and m > 0:
+                break
+            options.append(f"{h:02d}:{m:02d}")
+    return options
+
+
+def _normalize_time(value: str) -> str:
+    """Normalise HH:MM:SS or HH:MM to HH:MM so it matches dropdown options."""
+    return str(value)[:5]
+
+
+def _normalize_duration(value) -> str:
+    """Normalise DurationSelector dict or HH:MM string to HH:MM."""
+    if isinstance(value, dict):
+        h = int(value.get("hours", 0))
+        m = int(value.get("minutes", 0))
+        return f"{h:02d}:{m:02d}"
+    return _normalize_time(str(value))
+
+
+_QUARTER_HOUR_TIMES = _quarter_hour_times()
+_DURATION_OPTIONS = _duration_options()
 
 _STEP_USER_SCHEMA = vol.Schema(
     {
@@ -30,37 +67,32 @@ _STEP_USER_SCHEMA = vol.Schema(
             selector.EntitySelectorConfig(domain="sensor")
         ),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): selector.TextSelector(),
-        vol.Optional(CONF_CHEAP_SLOTS, default=DEFAULT_CHEAP_SLOTS): selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                min=1, max=96, step=1, mode=selector.NumberSelectorMode.BOX
+        vol.Optional(
+            CONF_CHEAP_DURATION, default=DEFAULT_CHEAP_DURATION
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=_DURATION_OPTIONS,
+                mode=selector.SelectSelectorMode.DROPDOWN,
             )
         ),
         vol.Optional(
-            CONF_EVENING_RANGE_START, default=DEFAULT_EVENING_RANGE_START
-        ): selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                min=0, max=95, step=1, mode=selector.NumberSelectorMode.BOX
+            CONF_CONTINUOUS_CHEAP_HOURS,
+            default=DEFAULT_CONTINUOUS_CHEAP_HOURS,
+        ): selector.BooleanSelector(),
+        vol.Optional(
+            CONF_WINDOW_START, default=DEFAULT_WINDOW_START
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=_QUARTER_HOUR_TIMES,
+                mode=selector.SelectSelectorMode.DROPDOWN,
             )
         ),
         vol.Optional(
-            CONF_EVENING_RANGE_END, default=DEFAULT_EVENING_RANGE_END
-        ): selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                min=1, max=96, step=1, mode=selector.NumberSelectorMode.BOX
-            )
-        ),
-        vol.Optional(
-            CONF_MORNING_RANGE_START, default=DEFAULT_MORNING_RANGE_START
-        ): selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                min=0, max=95, step=1, mode=selector.NumberSelectorMode.BOX
-            )
-        ),
-        vol.Optional(
-            CONF_MORNING_RANGE_END, default=DEFAULT_MORNING_RANGE_END
-        ): selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                min=1, max=96, step=1, mode=selector.NumberSelectorMode.BOX
+            CONF_WINDOW_END, default=DEFAULT_WINDOW_END
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=_QUARTER_HOUR_TIMES,
+                mode=selector.SelectSelectorMode.DROPDOWN,
             )
         ),
     }
@@ -83,8 +115,6 @@ class NordpoolOptimizedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if self.hass.states.get(sensor_id) is None:
                 errors[CONF_NORDPOOL_SENSOR] = "sensor_not_found"
             else:
-                await self.async_set_unique_id(sensor_id)
-                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=user_input.get(CONF_NAME, DEFAULT_NAME),
                     data=user_input,
@@ -116,7 +146,7 @@ class NordpoolOptimizedOptionsFlow(config_entries.OptionsFlow):
     ) -> config_entries.ConfigFlowResult:
         """Manage the options."""
         errors: dict[str, str] = {}
-        current = self._config_entry.data
+        current = {**self._config_entry.data, **self._config_entry.options}
 
         if user_input is not None:
             sensor_id: str = user_input[CONF_NORDPOOL_SENSOR]
@@ -138,43 +168,39 @@ class NordpoolOptimizedOptionsFlow(config_entries.OptionsFlow):
                     default=current.get(CONF_NAME, DEFAULT_NAME),
                 ): selector.TextSelector(),
                 vol.Optional(
-                    CONF_CHEAP_SLOTS,
-                    default=current.get(CONF_CHEAP_SLOTS, DEFAULT_CHEAP_SLOTS),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=1, max=96, step=1, mode=selector.NumberSelectorMode.BOX
+                    CONF_CHEAP_DURATION,
+                    default=_normalize_duration(current.get(CONF_CHEAP_DURATION, DEFAULT_CHEAP_DURATION)),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=_DURATION_OPTIONS,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
                 vol.Optional(
-                    CONF_EVENING_RANGE_START,
-                    default=current.get(CONF_EVENING_RANGE_START, DEFAULT_EVENING_RANGE_START),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0, max=95, step=1, mode=selector.NumberSelectorMode.BOX
+                    CONF_CONTINUOUS_CHEAP_HOURS,
+                    default=bool(
+                        current.get(
+                            CONF_CONTINUOUS_CHEAP_HOURS,
+                            DEFAULT_CONTINUOUS_CHEAP_HOURS,
+                        )
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_WINDOW_START,
+                    default=_normalize_time(current.get(CONF_WINDOW_START, DEFAULT_WINDOW_START)),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=_QUARTER_HOUR_TIMES,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
                 vol.Optional(
-                    CONF_EVENING_RANGE_END,
-                    default=current.get(CONF_EVENING_RANGE_END, DEFAULT_EVENING_RANGE_END),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=1, max=96, step=1, mode=selector.NumberSelectorMode.BOX
-                    )
-                ),
-                vol.Optional(
-                    CONF_MORNING_RANGE_START,
-                    default=current.get(CONF_MORNING_RANGE_START, DEFAULT_MORNING_RANGE_START),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0, max=95, step=1, mode=selector.NumberSelectorMode.BOX
-                    )
-                ),
-                vol.Optional(
-                    CONF_MORNING_RANGE_END,
-                    default=current.get(CONF_MORNING_RANGE_END, DEFAULT_MORNING_RANGE_END),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=1, max=96, step=1, mode=selector.NumberSelectorMode.BOX
+                    CONF_WINDOW_END,
+                    default=_normalize_time(current.get(CONF_WINDOW_END, DEFAULT_WINDOW_END)),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=_QUARTER_HOUR_TIMES,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
             }

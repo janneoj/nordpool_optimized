@@ -3,23 +3,19 @@
     "step": {
       "user": {
         "title": "Configure Nordpool Optimized",
-        "description": "Set up cheap hour detection. Slot indices are quarter-hour periods (0 = 00:00, 88 = 22:00, 95 = 23:45).",
+        "description": "Set up cheap hour detection.",
         "data": {
           "nordpool_sensor": "Nordpool sensor",
           "name": "Sensor name",
-          "cheap_slots": "Number of cheap quarter-hour slots",
-          "evening_range_start": "Evening window start (slot index, inclusive)",
-          "evening_range_end": "Evening window end (slot index, exclusive)",
-          "morning_range_start": "Morning window start (slot index, inclusive)",
-          "morning_range_end": "Morning window end (slot index, exclusive)"
+          "cheap_duration": "Cheap window duration",
+          "continuous_cheap_hours": "Find continuous cheap hours",
+          "window_start": "Window start (from raw_today)",
+          "window_end": "Window end (from raw_tomorrow)"
         }
       }
     },
     "error": {
       "sensor_not_found": "The selected sensor was not found. Make sure the Nordpool integration is running."
-    },
-    "abort": {
-      "already_configured": "This Nordpool sensor is already configured."
     }
   },
   "options": {
@@ -30,11 +26,10 @@
         "data": {
           "nordpool_sensor": "Nordpool sensor",
           "name": "Sensor name",
-          "cheap_slots": "Number of cheap quarter-hour slots",
-          "evening_range_start": "Evening window start (slot index, inclusive)",
-          "evening_range_end": "Evening window end (slot index, exclusive)",
-          "morning_range_start": "Morning window start (slot index, inclusive)",
-          "morning_range_end": "Morning window end (slot index, exclusive)"
+          "cheap_duration": "Cheap window duration",
+          "continuous_cheap_hours": "Find continuous cheap hours",
+          "window_start": "Window start (from raw_today)",
+          "window_end": "Window end (from raw_tomorrow)"
         }
       }
     },
