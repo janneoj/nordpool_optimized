@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Nordpool Optimized",
+        "description": "Set up cheap hour detection. Slot indices are quarter-hour periods (0 = 00:00, 88 = 22:00, 95 = 23:45).",
+        "data": {
+          "nordpool_sensor": "Nordpool sensor",
+          "name": "Sensor name",
+          "cheap_slots": "Number of cheap quarter-hour slots",
+          "evening_range_start": "Evening window start (slot index, inclusive)",
+          "evening_range_end": "Evening window end (slot index, exclusive)",
+          "morning_range_start": "Morning window start (slot index, inclusive)",
+          "morning_range_end": "Morning window end (slot index, exclusive)"
+        }
+      }
+    },
+    "error": {
+      "sensor_not_found": "The selected sensor was not found. Make sure the Nordpool integration is running."
+    },
+    "abort": {
+      "already_configured": "This Nordpool sensor is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nordpool Optimized options",
+        "description": "Update cheap hour detection settings.",
+        "data": {
+          "nordpool_sensor": "Nordpool sensor",
+          "name": "Sensor name",
+          "cheap_slots": "Number of cheap quarter-hour slots",
+          "evening_range_start": "Evening window start (slot index, inclusive)",
+          "evening_range_end": "Evening window end (slot index, exclusive)",
+          "morning_range_start": "Morning window start (slot index, inclusive)",
+          "morning_range_end": "Morning window end (slot index, exclusive)"
+        }
+      }
+    },
+    "error": {
+      "sensor_not_found": "The selected sensor was not found. Make sure the Nordpool integration is running."
+    }
+  }
+}
