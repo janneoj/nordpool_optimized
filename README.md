@@ -30,7 +30,7 @@ After the restart, go to **Settings → Devices & services → Add integration**
 
 ## Manual installation
 
-Copy the `nordpool_optimized` folder into your `custom_components` directory:
+Create a folder `custom_components/nordpool_optimized/` in your Home Assistant config directory, then copy these files from this repository into it:
 
 ```
 config/
