@@ -61,6 +61,24 @@ def _normalize_duration(value) -> str:
 _QUARTER_HOUR_TIMES = _quarter_hour_times()
 _DURATION_OPTIONS = _duration_options()
 
+
+def _entry_title(user_input: dict) -> str:
+    """Return the entry-list title with the configured schedule recap."""
+    name = user_input.get(CONF_NAME, DEFAULT_NAME)
+    duration = _normalize_duration(
+        user_input.get(CONF_CHEAP_DURATION, DEFAULT_CHEAP_DURATION)
+    )
+    window_start = _normalize_time(
+        user_input.get(CONF_WINDOW_START, DEFAULT_WINDOW_START)
+    )
+    window_end = _normalize_time(
+        user_input.get(CONF_WINDOW_END, DEFAULT_WINDOW_END)
+    )
+    continuity = "continuous" if user_input.get(
+        CONF_CONTINUOUS_CHEAP_HOURS, DEFAULT_CONTINUOUS_CHEAP_HOURS
+    ) else "separate"
+    return f"{name} ({window_start}-{window_end}, {duration}, {continuity})"
+
 _STEP_USER_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NORDPOOL_SENSOR): selector.EntitySelector(
@@ -116,7 +134,7 @@ class NordpoolOptimizedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors[CONF_NORDPOOL_SENSOR] = "sensor_not_found"
             else:
                 return self.async_create_entry(
-                    title=user_input.get(CONF_NAME, DEFAULT_NAME),
+                    title=_entry_title(user_input),
                     data=user_input,
                 )
 
@@ -153,6 +171,9 @@ class NordpoolOptimizedOptionsFlow(config_entries.OptionsFlow):
             if self.hass.states.get(sensor_id) is None:
                 errors[CONF_NORDPOOL_SENSOR] = "sensor_not_found"
             else:
+                self.hass.config_entries.async_update_entry(
+                    self._config_entry, title=_entry_title(user_input)
+                )
                 return self.async_create_entry(title="", data=user_input)
 
         schema = vol.Schema(
